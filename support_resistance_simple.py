@@ -26,9 +26,12 @@ class SupportResistanceAnalyzer:
         return 50000
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
+        # Always get fresh real-time price
+        print(f"Getting real-time price for {coin_id}...")
         current_price = self.get_current_price(coin_id)
+        print(f"Current price for {coin_id}: ${current_price}")
         
-        # Generate mock support/resistance levels
+        # Generate mock support/resistance levels based on current price
         supports = []
         resistances = []
         
@@ -36,8 +39,8 @@ class SupportResistanceAnalyzer:
         for i in range(5):
             support_level = current_price * (0.85 + i * 0.03)  # 85%, 88%, 91%, 94%, 97%
             resistance_level = current_price * (1.03 + i * 0.03)  # 103%, 106%, 109%, 112%, 115%
-            supports.append(round(support_level, 2))
-            resistances.append(round(resistance_level, 2))
+            supports.append(round(support_level, 4))
+            resistances.append(round(resistance_level, 4))
         
         # Find nearest levels
         nearest_support = max([s for s in supports if s < current_price])
@@ -52,7 +55,8 @@ class SupportResistanceAnalyzer:
             'coin_id': coin_id,
             'name': coin_name,
             'symbol': symbol,
-            'current_price': current_price,
+            'current_price': round(current_price, 4),  # Ensure fresh price
+            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'timeframes': {},
             'recommendations': []
         }
@@ -67,7 +71,7 @@ class SupportResistanceAnalyzer:
                 'resistance_distance_pct': round(resistance_distance, 2)
             }
         
-        # Generate recommendations
+        # Generate recommendations based on fresh price
         if support_distance <= 8:  # Within 8% of support
             analysis['recommendations'].append({
                 'type': 'BUY',

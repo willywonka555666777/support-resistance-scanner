@@ -256,6 +256,7 @@
                     <div class="col-md-4">
                         <h5>${analysis.name} (${analysis.symbol.toUpperCase()})</h5>
                         <h4 class="text-primary">$${analysis.current_price.toFixed(4)}</h4>
+                        <small class="text-muted">Updated: ${analysis.last_updated || 'Just now'}</small>
                     </div>
                     <div class="col-md-8">
                         ${recommendationsHtml}
