@@ -2,72 +2,57 @@ from flask import Flask, render_template, request, jsonify
 import json
 from datetime import datetime
 import requests
+import time
 
 class SupportResistanceAnalyzer:
     def __init__(self):
         self.coingecko_base = "https://api.coingecko.com/api/v3"
-        # Current real prices (updated manually)
-        self.fixed_prices = {
-            'bitcoin': 116800,
-            'ethereum': 3921,
-            'cardano': 0.794,
-            'solana': 175.13,
-            'ripple': 3.36,
-            'binancecoin': 787.34,
-            'dogecoin': 0.08,
-            'polygon': 0.85,
-            'chainlink': 12.5,
-            'litecoin': 85,
-            'avalanche-2': 28,
-            'uniswap': 6.2,
-            'polkadot': 5.8,
-            'shiba-inu': 0.000015,
-            'tron': 0.095,
-            'stellar': 0.11
-        }
+        self.last_call_time = 0
     
     def get_current_price(self, coin_id):
-        # Always try to get real-time price with better error handling
+        # Always force real-time API call
         try:
-            import time
-            import random
-            
-            # Add small delay to avoid rate limiting
-            time.sleep(0.2)
+            # Rate limiting: wait at least 1 second between calls
+            current_time = time.time()
+            if current_time - self.last_call_time < 1:
+                time.sleep(1 - (current_time - self.last_call_time))
             
             url = f"{self.coingecko_base}/simple/price"
             params = {'ids': coin_id, 'vs_currencies': 'usd'}
             
-            # Add user agent to avoid blocking
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
             }
             
-            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            self.last_call_time = time.time()
+            
             print(f"API call for {coin_id}: Status {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
                 if coin_id in data and 'usd' in data[coin_id]:
                     price = data[coin_id]['usd']
-                    print(f"Real-time price for {coin_id}: ${price}")
+                    print(f"✅ Real-time price for {coin_id}: ${price}")
                     return price
-            elif response.status_code == 429:
-                print(f"Rate limited for {coin_id}, using fixed price")
-            else:
-                print(f"API error {response.status_code} for {coin_id}")
-                
+            
+            print(f"❌ API failed for {coin_id}: Status {response.status_code}")
+            
         except Exception as e:
-            print(f"Exception for {coin_id}: {e}")
+            print(f"❌ Exception for {coin_id}: {e}")
         
-        # Use fixed price without random variation
-        fixed_price = self.fixed_prices.get(coin_id, 100)
-        print(f"Using fixed price for {coin_id}: ${fixed_price}")
-        return fixed_price
+        # If API completely fails, return None to show error
+        return None
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
-        # Always get a price (never fails)
+        print(f"🔄 Getting real-time price for {coin_id}...")
         current_price = self.get_current_price(coin_id)
+        
+        if current_price is None:
+            return {
+                'error': f'Unable to get real-time price for {coin_name}. CoinGecko API may be down. Please try again in a few seconds.'
+            }
         
         # Generate support/resistance levels
         supports = []
@@ -92,6 +77,7 @@ class SupportResistanceAnalyzer:
             'symbol': symbol,
             'current_price': round(current_price, 4),
             'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'price_source': 'CoinGecko API (Real-time)',
             'timeframes': {},
             'recommendations': []
         }
@@ -134,55 +120,37 @@ class SupportResistanceAnalyzer:
         return analysis
     
     def get_top_coins(self, limit=50):
-        coins = []
-        for coin_id, price in self.fixed_prices.items():
-            coin_names = {
-                'bitcoin': 'Bitcoin',
-                'ethereum': 'Ethereum', 
-                'cardano': 'Cardano',
-                'solana': 'Solana',
-                'ripple': 'XRP',
-                'binancecoin': 'BNB',
-                'dogecoin': 'Dogecoin',
-                'polygon': 'Polygon',
-                'chainlink': 'Chainlink',
-                'litecoin': 'Litecoin',
-                'avalanche-2': 'Avalanche',
-                'uniswap': 'Uniswap',
-                'polkadot': 'Polkadot',
-                'shiba-inu': 'Shiba Inu',
-                'tron': 'TRON',
-                'stellar': 'Stellar'
+        # Get real-time coin list from API
+        try:
+            url = f"{self.coingecko_base}/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': min(limit, 20),
+                'page': 1
             }
             
-            coin_symbols = {
-                'bitcoin': 'btc',
-                'ethereum': 'eth',
-                'cardano': 'ada',
-                'solana': 'sol',
-                'ripple': 'xrp',
-                'binancecoin': 'bnb',
-                'dogecoin': 'doge',
-                'polygon': 'matic',
-                'chainlink': 'link',
-                'litecoin': 'ltc',
-                'avalanche-2': 'avax',
-                'uniswap': 'uni',
-                'polkadot': 'dot',
-                'shiba-inu': 'shib',
-                'tron': 'trx',
-                'stellar': 'xlm'
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            coins.append({
-                'id': coin_id,
-                'name': coin_names.get(coin_id, coin_id.title()),
-                'symbol': coin_symbols.get(coin_id, coin_id[:3]),
-                'current_price': price,
-                'price_change_percentage_24h': 1.5
-            })
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ Got {len(data)} coins from API")
+                return data
+                
+        except Exception as e:
+            print(f"❌ Error getting coins: {e}")
         
-        return coins[:limit]
+        # Minimal fallback list
+        return [
+            {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 0, 'price_change_percentage_24h': 0},
+            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 0, 'price_change_percentage_24h': 0},
+            {'id': 'solana', 'name': 'Solana', 'symbol': 'sol', 'current_price': 0, 'price_change_percentage_24h': 0},
+            {'id': 'binancecoin', 'name': 'BNB', 'symbol': 'bnb', 'current_price': 0, 'price_change_percentage_24h': 0}
+        ]
 
 app = Flask(__name__, template_folder='../templates')
 analyzer = SupportResistanceAnalyzer()
@@ -199,14 +167,14 @@ def analyze_coin_route(coin_id):
     coin_info = next((c for c in coins if c['id'] == coin_id), None)
     
     if not coin_info:
-        return jsonify({'error': 'Coin not found'})
+        return jsonify({'error': f'Coin {coin_id} not found'})
     
     analysis = analyzer.analyze_coin(coin_id, coin_info['name'], coin_info['symbol'], timeframes)
     return jsonify(analysis)
 
 @app.route('/get-coins')
 def get_coins():
-    coins = analyzer.get_top_coins(50)
+    coins = analyzer.get_top_coins(20)
     result = []
     for coin in coins:
         result.append({
