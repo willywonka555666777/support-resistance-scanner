@@ -7,12 +7,23 @@ class SupportResistanceAnalyzer:
         self.coingecko_base = "https://api.coingecko.com/api/v3"
     
     def get_current_price(self, coin_id):
-        # Return fixed price from our coin list to avoid random prices
+        try:
+            url = f"{self.coingecko_base}/simple/price"
+            params = {'ids': coin_id, 'vs_currencies': 'usd'}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if coin_id in data and 'usd' in data[coin_id]:
+                    return data[coin_id]['usd']
+        except Exception as e:
+            print(f"API Error for {coin_id}: {e}")
+        
+        # Fallback to mock data only if API completely fails
         coins = self.get_top_coins(50)
         coin_info = next((c for c in coins if c['id'] == coin_id), None)
         if coin_info:
             return coin_info['current_price']
-        return 50000  # Default fallback
+        return 50000
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
         current_price = self.get_current_price(coin_id)
@@ -84,6 +95,21 @@ class SupportResistanceAnalyzer:
         return analysis
     
     def get_top_coins(self, limit=50):
+        try:
+            url = f"{self.coingecko_base}/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': min(limit, 50),
+                'page': 1
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            print(f"API Error getting coins: {e}")
+        
+        # Fallback mock data if API fails
         return [
             {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 45000, 'price_change_percentage_24h': 2.5},
             {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3920, 'price_change_percentage_24h': 1.8},
