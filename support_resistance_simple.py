@@ -7,14 +7,12 @@ class SupportResistanceAnalyzer:
         self.coingecko_base = "https://api.coingecko.com/api/v3"
     
     def get_current_price(self, coin_id):
-        try:
-            url = f"{self.coingecko_base}/simple/price"
-            params = {'ids': coin_id, 'vs_currencies': 'usd'}
-            response = requests.get(url, params=params)
-            data = response.json()
-            return data[coin_id]['usd']
-        except:
-            return random.uniform(20000, 60000)  # Mock price
+        # Return fixed price from our coin list to avoid random prices
+        coins = self.get_top_coins(50)
+        coin_info = next((c for c in coins if c['id'] == coin_id), None)
+        if coin_info:
+            return coin_info['current_price']
+        return 50000  # Default fallback
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
         current_price = self.get_current_price(coin_id)
@@ -88,7 +86,7 @@ class SupportResistanceAnalyzer:
     def get_top_coins(self, limit=50):
         return [
             {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 45000, 'price_change_percentage_24h': 2.5},
-            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 2800, 'price_change_percentage_24h': 1.8},
+            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3920, 'price_change_percentage_24h': 1.8},
             {'id': 'cardano', 'name': 'Cardano', 'symbol': 'ada', 'current_price': 0.45, 'price_change_percentage_24h': -1.2},
             {'id': 'solana', 'name': 'Solana', 'symbol': 'sol', 'current_price': 95, 'price_change_percentage_24h': 3.1},
             {'id': 'ripple', 'name': 'XRP', 'symbol': 'xrp', 'current_price': 0.62, 'price_change_percentage_24h': -0.8},
