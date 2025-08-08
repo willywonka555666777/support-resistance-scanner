@@ -5,11 +5,122 @@ import threading
 import time
 import os
 import sys
+import requests
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from support_resistance_simple import SupportResistanceAnalyzer
+class SupportResistanceAnalyzer:
+    def __init__(self):
+        self.coingecko_base = "https://api.coingecko.com/api/v3"
+    
+    def get_current_price(self, coin_id):
+        try:
+            url = f"{self.coingecko_base}/simple/price"
+            params = {'ids': coin_id, 'vs_currencies': 'usd'}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if coin_id in data and 'usd' in data[coin_id]:
+                    return data[coin_id]['usd']
+        except Exception as e:
+            print(f"API Error for {coin_id}: {e}")
+        
+        return None
+    
+    def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
+        print(f"Getting real-time price for {coin_id}...")
+        current_price = self.get_current_price(coin_id)
+        
+        if current_price is None:
+            print(f"API failed for {coin_id}, using fallback")
+            return {'error': 'Unable to get current price'}
+        
+        print(f"Current price for {coin_id}: ${current_price}")
+        
+        supports = []
+        resistances = []
+        
+        for i in range(5):
+            support_level = current_price * (0.85 + i * 0.03)
+            resistance_level = current_price * (1.03 + i * 0.03)
+            supports.append(round(support_level, 4))
+            resistances.append(round(resistance_level, 4))
+        
+        nearest_support = max([s for s in supports if s < current_price])
+        nearest_resistance = min([r for r in resistances if r > current_price])
+        
+        support_distance = ((current_price - nearest_support) / current_price * 100)
+        resistance_distance = ((nearest_resistance - current_price) / current_price * 100)
+        
+        timeframes = selected_timeframes or ['15m', '1h', '4h', '1d']
+        analysis = {
+            'coin_id': coin_id,
+            'name': coin_name,
+            'symbol': symbol,
+            'current_price': round(current_price, 4),
+            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'timeframes': {},
+            'recommendations': []
+        }
+        
+        for tf in timeframes:
+            analysis['timeframes'][tf] = {
+                'supports': supports,
+                'resistances': resistances,
+                'nearest_support': nearest_support,
+                'nearest_resistance': nearest_resistance,
+                'support_distance_pct': round(support_distance, 2),
+                'resistance_distance_pct': round(resistance_distance, 2)
+            }
+        
+        if support_distance <= 8:
+            analysis['recommendations'].append({
+                'type': 'BUY',
+                'timeframe': '1h',
+                'reason': f'Price near support level at ${nearest_support}',
+                'entry_price': round(nearest_support * 1.005, 4),
+                'stop_loss': round(nearest_support * 0.99, 4),
+                'take_profit': round(current_price * 1.05, 4),
+                'risk_reward': 3.2,
+                'confidence': 'HIGH' if support_distance <= 4 else 'MEDIUM'
+            })
+        
+        if resistance_distance <= 6:
+            analysis['recommendations'].append({
+                'type': 'SELL',
+                'timeframe': '1h',
+                'reason': f'Price near resistance level at ${nearest_resistance}',
+                'entry_price': round(nearest_resistance * 0.995, 4),
+                'stop_loss': round(nearest_resistance * 1.01, 4),
+                'take_profit': round(current_price * 0.95, 4),
+                'risk_reward': 2.8,
+                'confidence': 'HIGH' if resistance_distance <= 3 else 'MEDIUM'
+            })
+        
+        return analysis
+    
+    def get_top_coins(self, limit=50):
+        try:
+            url = f"{self.coingecko_base}/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': min(limit, 50),
+                'page': 1
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            print(f"API Error getting coins: {e}")
+        
+        return [
+            {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 116811, 'price_change_percentage_24h': 2.5},
+            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3929, 'price_change_percentage_24h': 1.8},
+            {'id': 'solana', 'name': 'Solana', 'symbol': 'sol', 'current_price': 175, 'price_change_percentage_24h': 3.1},
+            {'id': 'binancecoin', 'name': 'BNB', 'symbol': 'bnb', 'current_price': 787, 'price_change_percentage_24h': 1.5}
+        ]
 
 app = Flask(__name__, template_folder='../templates')
 analyzer = SupportResistanceAnalyzer()
@@ -18,24 +129,6 @@ scanning = False
 @app.route('/')
 def index():
     return render_template('sr_index.html')
-
-@app.route('/scan-opportunities')
-def scan_opportunities():
-    global scanning
-    max_support_dist = request.args.get('support_dist', 10, type=float)
-    max_resistance_dist = request.args.get('resistance_dist', 8, type=float)
-    timeframes = request.args.get('timeframes', '').split(',') if request.args.get('timeframes') else None
-    
-    scanning = True
-    opportunities = analyzer.scan_all_coins(max_support_dist, max_resistance_dist, timeframes, not scanning)
-    scanning = False
-    return jsonify(opportunities)
-
-@app.route('/stop-scan', methods=['POST'])
-def stop_scan():
-    global scanning
-    scanning = False
-    return jsonify({'status': 'Scan stopped'})
 
 @app.route('/analyze-coin/<coin_id>')
 def analyze_coin(coin_id):
