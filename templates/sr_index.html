@@ -108,14 +108,33 @@
         };
 
         function loadCoins() {
-            fetch('/get-coins')
-            .then(response => response.json())
+            const timestamp = new Date().getTime();
+            fetch(`/get-coins?t=${timestamp}`, {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(coins => {
+                if (coins.error) {
+                    console.error('Error loading coins:', coins.error);
+                    return;
+                }
                 const select = document.getElementById('coin-select');
                 select.innerHTML = '<option value="">Select coin...</option>';
                 coins.forEach(coin => {
                     select.innerHTML += `<option value="${coin.id}">${coin.name} (${coin.symbol})</option>`;
                 });
+            })
+            .catch(error => {
+                console.error('Failed to load coins:', error);
             });
         }
 
@@ -214,11 +233,35 @@
             const coinId = document.getElementById('coin-select').value;
             if (!coinId) return;
             
+            // Clear previous analysis
+            document.getElementById('single-analysis').style.display = 'none';
+            
             const timeframes = getSelectedTimeframes();
-            fetch(`/analyze-coin/${coinId}?timeframes=${timeframes}`)
-            .then(response => response.json())
+            // Add timestamp to prevent caching
+            const timestamp = new Date().getTime();
+            fetch(`/analyze-coin/${coinId}?timeframes=${timeframes}&t=${timestamp}`, {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(analysis => {
+                if (analysis.error) {
+                    alert(`Error: ${analysis.error}`);
+                    return;
+                }
                 displaySingleAnalysis(analysis);
+            })
+            .catch(error => {
+                console.error('Analysis error:', error);
+                alert(`Analysis failed: ${error.message}`);
             });
         }
 

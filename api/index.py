@@ -16,16 +16,32 @@ class SupportResistanceAnalyzer:
     
     def get_current_price(self, coin_id):
         try:
+            import time
+            # Add timestamp to prevent API caching
             url = f"{self.coingecko_base}/simple/price"
-            params = {'ids': coin_id, 'vs_currencies': 'usd'}
-            response = requests.get(url, params=params, timeout=10)
+            params = {
+                'ids': coin_id, 
+                'vs_currencies': 'usd',
+                '_': int(time.time() * 1000)  # Cache buster
+            }
+            headers = {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+            response = requests.get(url, params=params, headers=headers, timeout=15)
+            print(f"API Response for {coin_id}: {response.status_code}")
+            
             if response.status_code == 200:
                 data = response.json()
+                print(f"API Data for {coin_id}: {data}")
                 if coin_id in data and 'usd' in data[coin_id]:
-                    return data[coin_id]['usd']
+                    price = data[coin_id]['usd']
+                    print(f"Extracted price for {coin_id}: ${price}")
+                    return price
         except Exception as e:
             print(f"API Error for {coin_id}: {e}")
         
+        print(f"API failed for {coin_id}, returning None")
         return None
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
