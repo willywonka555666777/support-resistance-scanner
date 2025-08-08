@@ -118,20 +118,31 @@ class SupportResistanceAnalyzer:
         return [
             {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 116811, 'price_change_percentage_24h': 2.5},
             {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3929, 'price_change_percentage_24h': 1.8},
+            {'id': 'cardano', 'name': 'Cardano', 'symbol': 'ada', 'current_price': 0.79, 'price_change_percentage_24h': -1.2},
             {'id': 'solana', 'name': 'Solana', 'symbol': 'sol', 'current_price': 175, 'price_change_percentage_24h': 3.1},
-            {'id': 'binancecoin', 'name': 'BNB', 'symbol': 'bnb', 'current_price': 787, 'price_change_percentage_24h': 1.5}
-        ]
+            {'id': 'ripple', 'name': 'XRP', 'symbol': 'xrp', 'current_price': 3.36, 'price_change_percentage_24h': -0.8},
+            {'id': 'binancecoin', 'name': 'BNB', 'symbol': 'bnb', 'current_price': 787, 'price_change_percentage_24h': 1.5},
+            {'id': 'dogecoin', 'name': 'Dogecoin', 'symbol': 'doge', 'current_price': 0.08, 'price_change_percentage_24h': 4.2},
+            {'id': 'polygon', 'name': 'Polygon', 'symbol': 'matic', 'current_price': 0.85, 'price_change_percentage_24h': -2.1},
+            {'id': 'chainlink', 'name': 'Chainlink', 'symbol': 'link', 'current_price': 12.5, 'price_change_percentage_24h': 1.9},
+            {'id': 'litecoin', 'name': 'Litecoin', 'symbol': 'ltc', 'current_price': 85, 'price_change_percentage_24h': -0.5},
+            {'id': 'avalanche-2', 'name': 'Avalanche', 'symbol': 'avax', 'current_price': 28, 'price_change_percentage_24h': 3.8},
+            {'id': 'uniswap', 'name': 'Uniswap', 'symbol': 'uni', 'current_price': 6.2, 'price_change_percentage_24h': -1.8},
+            {'id': 'polkadot', 'name': 'Polkadot', 'symbol': 'dot', 'current_price': 5.8, 'price_change_percentage_24h': 2.1},
+            {'id': 'shiba-inu', 'name': 'Shiba Inu', 'symbol': 'shib', 'current_price': 0.000015, 'price_change_percentage_24h': 5.2},
+            {'id': 'tron', 'name': 'TRON', 'symbol': 'trx', 'current_price': 0.095, 'price_change_percentage_24h': 1.3},
+            {'id': 'stellar', 'name': 'Stellar', 'symbol': 'xlm', 'current_price': 0.11, 'price_change_percentage_24h': -2.4}
+        ][:limit]
 
 app = Flask(__name__, template_folder='../templates')
 analyzer = SupportResistanceAnalyzer()
-scanning = False
 
 @app.route('/')
 def index():
     return render_template('sr_index.html')
 
 @app.route('/analyze-coin/<coin_id>')
-def analyze_coin(coin_id):
+def analyze_coin_route(coin_id):
     timeframes = request.args.get('timeframes', '').split(',') if request.args.get('timeframes') else None
     
     coins = analyzer.get_top_coins(100)
@@ -140,19 +151,27 @@ def analyze_coin(coin_id):
     if not coin_info:
         return jsonify({'error': 'Coin not found'})
     
-    analysis = analyzer.analyze_coin(coin_id, coin_info['name'], coin_info['symbol'], timeframes)
-    return jsonify(analysis)
+    try:
+        analysis = analyzer.analyze_coin(coin_id, coin_info['name'], coin_info['symbol'], timeframes)
+        return jsonify(analysis)
+    except Exception as e:
+        print(f"Analysis error: {e}")
+        return jsonify({'error': f'Analysis failed: {str(e)}'})
 
 @app.route('/get-coins')
 def get_coins():
-    coins = analyzer.get_top_coins(50)
-    result = []
-    for coin in coins:
-        result.append({
-            'id': coin['id'],
-            'name': coin['name'], 
-            'symbol': coin['symbol'].upper(),
-            'price': coin['current_price'],
-            'change_24h': coin['price_change_percentage_24h']
-        })
-    return jsonify(result)
+    try:
+        coins = analyzer.get_top_coins(50)
+        result = []
+        for coin in coins:
+            result.append({
+                'id': coin['id'],
+                'name': coin['name'], 
+                'symbol': coin['symbol'].upper(),
+                'price': coin['current_price'],
+                'change_24h': coin['price_change_percentage_24h']
+            })
+        return jsonify(result)
+    except Exception as e:
+        print(f"Get coins error: {e}")
+        return jsonify({'error': f'Failed to get coins: {str(e)}'})
