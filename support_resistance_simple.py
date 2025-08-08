@@ -18,17 +18,22 @@ class SupportResistanceAnalyzer:
         except Exception as e:
             print(f"API Error for {coin_id}: {e}")
         
-        # Fallback to mock data only if API completely fails
-        coins = self.get_top_coins(50)
-        coin_info = next((c for c in coins if c['id'] == coin_id), None)
-        if coin_info:
-            return coin_info['current_price']
-        return 50000
+        return None  # Let analyze_coin handle fallback
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
         # Always get fresh real-time price
         print(f"Getting real-time price for {coin_id}...")
         current_price = self.get_current_price(coin_id)
+        
+        # If API fails, get from coin list
+        if current_price is None:
+            coins = self.get_top_coins(50)
+            coin_info = next((c for c in coins if c['id'] == coin_id), None)
+            if coin_info:
+                current_price = coin_info['current_price']
+            else:
+                current_price = 50000
+        
         print(f"Current price for {coin_id}: ${current_price}")
         
         # Generate mock support/resistance levels based on current price
@@ -115,8 +120,8 @@ class SupportResistanceAnalyzer:
         
         # Fallback mock data if API fails
         return [
-            {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 45000, 'price_change_percentage_24h': 2.5},
-            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3920, 'price_change_percentage_24h': 1.8},
+            {'id': 'bitcoin', 'name': 'Bitcoin', 'symbol': 'btc', 'current_price': 116811, 'price_change_percentage_24h': 2.5},
+            {'id': 'ethereum', 'name': 'Ethereum', 'symbol': 'eth', 'current_price': 3929, 'price_change_percentage_24h': 1.8},
             {'id': 'cardano', 'name': 'Cardano', 'symbol': 'ada', 'current_price': 0.45, 'price_change_percentage_24h': -1.2},
             {'id': 'solana', 'name': 'Solana', 'symbol': 'sol', 'current_price': 95, 'price_change_percentage_24h': 3.1},
             {'id': 'ripple', 'name': 'XRP', 'symbol': 'xrp', 'current_price': 0.62, 'price_change_percentage_24h': -0.8},
