@@ -155,12 +155,35 @@
             
             fetch(`/scan-opportunities?support_dist=${supportDist}&resistance_dist=${resistanceDist}&timeframes=${timeframes}`)
             .then(response => response.json())
-            .then(opportunities => {
+            .then(result => {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('scan-btn').style.display = 'block';
                 document.getElementById('stop-btn').style.display = 'none';
-                displayOpportunities(opportunities);
+                
+                if (result.error) {
+                    document.getElementById('opportunities-list').innerHTML = `
+                        <div class="alert alert-warning">
+                            <h6>⚠️ ${result.error}</h6>
+                            <p>${result.message || 'Please try again later.'}</p>
+                        </div>
+                    `;
+                } else {
+                    displayOpportunities(result);
+                }
+                
                 document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('scan-btn').style.display = 'block';
+                document.getElementById('stop-btn').style.display = 'none';
+                
+                document.getElementById('opportunities-list').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>❌ Scan Failed</h6>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
             });
         }
 

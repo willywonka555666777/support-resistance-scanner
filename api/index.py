@@ -235,6 +235,17 @@ def analyze_coin_route(coin_id):
     analysis = analyzer.analyze_coin(coin_id, coin_info['name'], coin_info['symbol'], timeframes)
     return jsonify(analysis)
 
+@app.route('/scan-opportunities')
+def scan_opportunities():
+    return jsonify({
+        'error': 'Scan feature not available in this version. Use Quick Analysis instead.',
+        'message': 'Please select individual coins for analysis using the dropdown menu.'
+    })
+
+@app.route('/stop-scan', methods=['POST'])
+def stop_scan():
+    return jsonify({'status': 'Scan not available'})
+
 @app.route('/get-coins')
 def get_coins():
     coins = analyzer.get_top_coins(20)
