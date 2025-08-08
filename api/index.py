@@ -6,14 +6,14 @@ import requests
 class SupportResistanceAnalyzer:
     def __init__(self):
         self.coingecko_base = "https://api.coingecko.com/api/v3"
-        # Fixed prices that always work
+        # Current real prices (updated manually)
         self.fixed_prices = {
             'bitcoin': 116800,
-            'ethereum': 3930,
-            'cardano': 0.79,
-            'solana': 175,
+            'ethereum': 3921,
+            'cardano': 0.794,
+            'solana': 175.13,
             'ripple': 3.36,
-            'binancecoin': 787,
+            'binancecoin': 787.34,
             'dogecoin': 0.08,
             'polygon': 0.85,
             'chainlink': 12.5,
@@ -60,13 +60,10 @@ class SupportResistanceAnalyzer:
         except Exception as e:
             print(f"Exception for {coin_id}: {e}")
         
-        # Fallback with slight randomization to simulate price movement
-        base_price = self.fixed_prices.get(coin_id, 100)
-        # Add ±0.5% random variation
-        variation = random.uniform(-0.005, 0.005)
-        final_price = base_price * (1 + variation)
-        print(f"Using fallback price for {coin_id}: ${final_price}")
-        return final_price
+        # Use fixed price without random variation
+        fixed_price = self.fixed_prices.get(coin_id, 100)
+        print(f"Using fixed price for {coin_id}: ${fixed_price}")
+        return fixed_price
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
         # Always get a price (never fails)
