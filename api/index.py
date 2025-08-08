@@ -10,39 +10,102 @@ class SupportResistanceAnalyzer:
         self.last_call_time = 0
     
     def get_current_price(self, coin_id):
-        # Always force real-time API call
-        try:
-            # Rate limiting: wait at least 1 second between calls
-            current_time = time.time()
-            if current_time - self.last_call_time < 1:
-                time.sleep(1 - (current_time - self.last_call_time))
-            
-            url = f"{self.coingecko_base}/simple/price"
-            params = {'ids': coin_id, 'vs_currencies': 'usd'}
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'application/json'
-            }
-            
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-            self.last_call_time = time.time()
-            
-            print(f"API call for {coin_id}: Status {response.status_code}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if coin_id in data and 'usd' in data[coin_id]:
-                    price = data[coin_id]['usd']
-                    print(f"✅ Real-time price for {coin_id}: ${price}")
-                    return price
-            
-            print(f"❌ API failed for {coin_id}: Status {response.status_code}")
-            
-        except Exception as e:
-            print(f"❌ Exception for {coin_id}: {e}")
+        # Try multiple free APIs
+        apis = [
+            self.get_price_coingecko,
+            self.get_price_coinapi,
+            self.get_price_binance,
+            self.get_price_kraken
+        ]
         
-        # If API completely fails, return None to show error
+        for api_func in apis:
+            try:
+                price = api_func(coin_id)
+                if price:
+                    return price
+            except:
+                continue
+        
+        return None
+    
+    def get_price_coingecko(self, coin_id):
+        url = f"{self.coingecko_base}/simple/price"
+        params = {'ids': coin_id, 'vs_currencies': 'usd'}
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if coin_id in data and 'usd' in data[coin_id]:
+                price = data[coin_id]['usd']
+                print(f"✅ CoinGecko: {coin_id} = ${price}")
+                return price
+        return None
+    
+    def get_price_coinapi(self, coin_id):
+        # CoinAPI.io free tier
+        symbol_map = {
+            'bitcoin': 'BTC', 'ethereum': 'ETH', 'solana': 'SOL',
+            'binancecoin': 'BNB', 'cardano': 'ADA', 'ripple': 'XRP'
+        }
+        
+        symbol = symbol_map.get(coin_id)
+        if not symbol:
+            return None
+            
+        url = f"https://rest.coinapi.io/v1/exchangerate/{symbol}/USD"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            price = data.get('rate')
+            if price:
+                print(f"✅ CoinAPI: {coin_id} = ${price}")
+                return price
+        return None
+    
+    def get_price_binance(self, coin_id):
+        # Binance public API
+        symbol_map = {
+            'bitcoin': 'BTCUSDT', 'ethereum': 'ETHUSDT', 'solana': 'SOLUSDT',
+            'binancecoin': 'BNBUSDT', 'cardano': 'ADAUSDT', 'ripple': 'XRPUSDT'
+        }
+        
+        symbol = symbol_map.get(coin_id)
+        if not symbol:
+            return None
+            
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            price = float(data.get('price', 0))
+            if price > 0:
+                print(f"✅ Binance: {coin_id} = ${price}")
+                return price
+        return None
+    
+    def get_price_kraken(self, coin_id):
+        # Kraken public API
+        symbol_map = {
+            'bitcoin': 'XBTUSD', 'ethereum': 'ETHUSD', 'solana': 'SOLUSD',
+            'cardano': 'ADAUSD', 'ripple': 'XRPUSD'
+        }
+        
+        symbol = symbol_map.get(coin_id)
+        if not symbol:
+            return None
+            
+        url = f"https://api.kraken.com/0/public/Ticker?pair={symbol}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'result' in data:
+                for pair_data in data['result'].values():
+                    price = float(pair_data['c'][0])  # Last trade price
+                    print(f"✅ Kraken: {coin_id} = ${price}")
+                    return price
         return None
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
@@ -77,7 +140,7 @@ class SupportResistanceAnalyzer:
             'symbol': symbol,
             'current_price': round(current_price, 4),
             'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'price_source': 'CoinGecko API (Real-time)',
+            'price_source': 'Multiple APIs (Real-time)',
             'timeframes': {},
             'recommendations': []
         }
