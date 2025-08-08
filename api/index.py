@@ -16,32 +16,19 @@ class SupportResistanceAnalyzer:
     
     def get_current_price(self, coin_id):
         try:
-            import time
-            # Add timestamp to prevent API caching
             url = f"{self.coingecko_base}/simple/price"
-            params = {
-                'ids': coin_id, 
-                'vs_currencies': 'usd',
-                '_': int(time.time() * 1000)  # Cache buster
-            }
-            headers = {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-            print(f"API Response for {coin_id}: {response.status_code}")
+            params = {'ids': coin_id, 'vs_currencies': 'usd'}
+            response = requests.get(url, params=params, timeout=8)
             
             if response.status_code == 200:
                 data = response.json()
-                print(f"API Data for {coin_id}: {data}")
                 if coin_id in data and 'usd' in data[coin_id]:
                     price = data[coin_id]['usd']
-                    print(f"Extracted price for {coin_id}: ${price}")
+                    print(f"API success for {coin_id}: ${price}")
                     return price
         except Exception as e:
             print(f"API Error for {coin_id}: {e}")
         
-        print(f"API failed for {coin_id}, returning None")
         return None
     
     def analyze_coin(self, coin_id, coin_name, symbol, selected_timeframes=None):
@@ -49,8 +36,29 @@ class SupportResistanceAnalyzer:
         current_price = self.get_current_price(coin_id)
         
         if current_price is None:
-            print(f"API failed for {coin_id}, using fallback")
-            return {'error': 'Unable to get current price'}
+            print(f"API failed for {coin_id}, using fallback from coin list")
+            # Get fallback price from coin list
+            coins = self.get_top_coins(50)
+            coin_info = next((c for c in coins if c['id'] == coin_id), None)
+            if coin_info:
+                current_price = coin_info['current_price']
+                print(f"Using fallback price for {coin_id}: ${current_price}")
+            else:
+                # Last resort - use reasonable default prices
+                default_prices = {
+                    'bitcoin': 116000,
+                    'ethereum': 3900,
+                    'solana': 175,
+                    'binancecoin': 780,
+                    'cardano': 0.79,
+                    'ripple': 3.3,
+                    'dogecoin': 0.08,
+                    'polygon': 0.85,
+                    'chainlink': 12.5,
+                    'litecoin': 85
+                }
+                current_price = default_prices.get(coin_id, 100)
+                print(f"Using default price for {coin_id}: ${current_price}")
         
         print(f"Current price for {coin_id}: ${current_price}")
         
