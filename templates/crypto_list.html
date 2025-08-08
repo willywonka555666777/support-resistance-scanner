@@ -1,0 +1,61 @@
+<!-- Add this to index.html after the signals table -->
+<div class="card mt-4">
+    <div class="card-header">💰 Top Cryptocurrencies (Live Prices)</div>
+    <div class="card-body">
+        <button class="btn btn-info mb-3" onclick="loadCryptoPrices()">Refresh Prices</button>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Price (USD)</th>
+                        <th>24h Change</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="crypto-prices-table">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">Click refresh to load prices</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadCryptoPrices() {
+    fetch('/crypto-prices')
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('crypto-prices-table');
+        tbody.innerHTML = '';
+        
+        data.forEach(crypto => {
+            const changeClass = crypto.change_24h > 0 ? 'text-success' : 'text-danger';
+            const changeIcon = crypto.change_24h > 0 ? '↗' : '↘';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${crypto.symbol}</strong></td>
+                    <td>${crypto.name}</td>
+                    <td>$${crypto.price.toFixed(2)}</td>
+                    <td class="${changeClass}">${changeIcon} ${crypto.change_24h.toFixed(2)}%</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="selectSymbol('${crypto.symbol}')">
+                            Select
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+}
+
+function selectSymbol(symbol) {
+    document.getElementById('bt-symbol').value = symbol;
+    document.getElementById('opt-symbol').value = symbol;
+    alert(`Selected ${symbol} for trading`);
+}
+</script>
